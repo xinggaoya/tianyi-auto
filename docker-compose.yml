@@ -1,6 +1,10 @@
 services:
   tianyi-auto:
-    build: .
+    build:
+      context: .
+      # Debian 镜像源加速（可按需改成清华/阿里云等）
+      args:
+        DEBIAN_MIRROR: mirrors.ustc.edu.cn
     network_mode: host # required to reach LAN router from container
     restart: always
     environment:

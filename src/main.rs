@@ -2,7 +2,6 @@ use anyhow::{Context, Result, bail};
 use chrono::{Local, TimeDelta};
 use clap::Parser;
 use cron::Schedule;
-use log::{debug, error, info, warn};
 use reqwest::blocking::Client;
 use reqwest::header::{
     ACCEPT, ACCEPT_LANGUAGE, CACHE_CONTROL, CONNECTION, HeaderMap, HeaderValue, PRAGMA, REFERER,
@@ -15,6 +14,8 @@ use std::fs;
 use std::str::FromStr;
 use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use tracing::{debug, error, info, warn};
+use tracing_subscriber::EnvFilter;
 use url::Url;
 
 const DEFAULT_CRON: &str = "0 0 4 * * Mon";
@@ -100,14 +101,24 @@ fn main() -> Result<()> {
 }
 
 fn init_logger(verbose: bool) {
-    let level = if verbose {
-        log::LevelFilter::Debug
-    } else {
-        log::LevelFilter::Info
+    // 使用 tracing：更现代、支持结构化字段与更强的订阅/过滤能力。
+    // 时间戳使用本地时区（容器内通过 TZ/tzdata 生效），避免看到默认的 UTC `Z` 前缀。
+    let filter = match EnvFilter::try_from_default_env() {
+        Ok(f) => f,
+        Err(_) => {
+            if verbose {
+                EnvFilter::new("debug")
+            } else {
+                EnvFilter::new("info")
+            }
+        }
     };
-    let mut builder =
-        env_logger::Builder::from_env(env_logger::Env::default().default_filter_or(""));
-    builder.filter_level(level).format_timestamp_secs().init();
+
+    tracing_subscriber::fmt()
+        .with_env_filter(filter)
+        .with_timer(tracing_subscriber::fmt::time::ChronoLocal::rfc_3339())
+        .with_target(false)
+        .init();
 }
 
 fn log_time_diagnostics() {
@@ -118,10 +129,13 @@ fn log_time_diagnostics() {
         .map(|s| s.trim().to_string());
 
     // Local::now() 的 offset 是相对 UTC 的秒数（例如北京时间通常为 +28800）。
-    let offset_seconds = now.offset().fix().local_minus_utc();
+    let offset_seconds = now.offset().local_minus_utc();
     info!(
-        "Time diagnostics: local_now={} offset_seconds={} TZ_env={:?} /etc/timezone={:?}",
-        now, offset_seconds, tz_env, tz_file
+        local_now = %now,
+        offset_seconds,
+        TZ_env = ?tz_env,
+        etc_timezone = ?tz_file,
+        "Time diagnostics"
     );
 }
 
