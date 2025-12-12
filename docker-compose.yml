@@ -4,14 +4,15 @@ services:
     network_mode: host # required to reach LAN router from container
     restart: always
     environment:
+      # 时区影响 Rust 的 Local 时间；不设置时通常为 UTC，cron 会整体偏移（例如北京时间少 8 小时）。
+      - TZ=Asia/Shanghai
       - ROUTER_PASSWORD=crjnb
     command:
       - "--host"
       - "http://192.168.1.1"
       - "--username"
       - "useradmin"
-      - "--password"
-      - "${ROUTER_PASSWORD}"
+      # 密码建议使用环境变量 ROUTER_PASSWORD（避免出现在命令行参数里）
       - "--cron"
       - "0 0 4 * * Mon"
     # uncomment if you want an immediate run on container start

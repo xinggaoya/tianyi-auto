@@ -11,6 +11,7 @@ use reqwest::header::{
 use reqwest::redirect::Policy;
 use serde_json::json;
 use std::collections::HashMap;
+use std::fs;
 use std::str::FromStr;
 use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -78,6 +79,9 @@ fn main() -> Result<()> {
     let args = Args::parse();
     init_logger(args.verbose);
 
+    // 定时任务使用 chrono::Local，容器里若未配置时区（常见为 UTC），cron 会按 UTC 解释而发生整体偏移。
+    log_time_diagnostics();
+
     let base = Url::parse(&args.host).context("invalid host URL")?;
     let cfg = Config {
         login_url: build_url(&base, &args.login_path)?,
@@ -104,6 +108,21 @@ fn init_logger(verbose: bool) {
     let mut builder =
         env_logger::Builder::from_env(env_logger::Env::default().default_filter_or(""));
     builder.filter_level(level).format_timestamp_secs().init();
+}
+
+fn log_time_diagnostics() {
+    let now = Local::now();
+    let tz_env = std::env::var("TZ").ok();
+    let tz_file = fs::read_to_string("/etc/timezone")
+        .ok()
+        .map(|s| s.trim().to_string());
+
+    // Local::now() 的 offset 是相对 UTC 的秒数（例如北京时间通常为 +28800）。
+    let offset_seconds = now.offset().fix().local_minus_utc();
+    info!(
+        "Time diagnostics: local_now={} offset_seconds={} TZ_env={:?} /etc/timezone={:?}",
+        now, offset_seconds, tz_env, tz_file
+    );
 }
 
 fn build_client(timeout_secs: u64) -> Result<Client> {
