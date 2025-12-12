@@ -1,0 +1,6 @@
+# Use a China mirror to speed up crate index and downloads.
+[source.crates-io]
+replace-with = "ustc"
+
+[source.ustc]
+registry = "sparse+https://mirrors.ustc.edu.cn/crates.io-index/"

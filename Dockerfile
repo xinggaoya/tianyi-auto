@@ -1,6 +1,8 @@
-FROM rust:1.82 as builder
+# Edition 2024 needs nightly Rust for now.
+FROM rustlang/rust:nightly as builder
 WORKDIR /app
 COPY Cargo.toml Cargo.lock ./
+COPY .cargo ./.cargo
 COPY src ./src
 RUN cargo build --release
 

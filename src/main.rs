@@ -16,6 +16,8 @@ use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use url::Url;
 
+const DEFAULT_CRON: &str = "0 0 4 * * Mon";
+
 #[derive(Parser, Debug)]
 #[command(name = "tianyi-auto", about = "Login then reboot Tianyi/ZTE router")]
 struct Args {
@@ -49,8 +51,8 @@ struct Args {
     /// Request timeout seconds
     #[arg(long, default_value_t = 10)]
     timeout_secs: u64,
-    /// Cron expression for scheduled runs (local time). Default: Mon 04:00
-    #[arg(long, default_value = "0 4 * * Mon")]
+    /// Cron expression for scheduled runs (local time). Default: Mon 04:00 (sec min hour dom mon dow)
+    #[arg(long, default_value = DEFAULT_CRON)]
     cron: String,
     /// Run once immediately on start
     #[arg(long, default_value_t = false)]
@@ -213,7 +215,10 @@ fn reboot(client: &Client, cfg: &Config) -> Result<()> {
 }
 
 fn run_scheduler(client: Client, cfg: Config, cron_expr: &str, run_now: bool) -> Result<()> {
-    let schedule = Schedule::from_str(cron_expr).context("invalid cron expression")?;
+    // 如果 cron 表达式为空或解析失败，则使用默认值
+    let schedule = Schedule::from_str(cron_expr)
+        .or_else(|_| Schedule::from_str(DEFAULT_CRON))
+        .context("invalid cron expression and failed to use default")?;
 
     if run_now {
         info!("Running immediately due to --run-now");

@@ -13,6 +13,6 @@ services:
       - "--password"
       - "${ROUTER_PASSWORD}"
       - "--cron"
-      - "0 4 * * Mon"
+      - "0 0 4 * * Mon"
     # uncomment if you want an immediate run on container start
     #   - "--run-now"
